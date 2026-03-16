@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { size: A4 landscape; margin: 2cm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #333; }
+    .rib-container { border: 2px solid #003366; border-radius: 8px; padding: 25px 30px; max-width: 700px; margin: 40px auto; }
+    h1 { text-align: center; color: #003366; font-size: 18px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 3px; }
+    .banque-nom { text-align: center; font-size: 14px; color: #555; margin-bottom: 20px; }
+    .titulaire { margin-bottom: 20px; }
+    .titulaire h3 { font-size: 10px; color: #999; text-transform: uppercase; margin: 0 0 5px 0; }
+    .titulaire p { margin: 3px 0; }
+    .rib-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    .rib-table th { background: #003366; color: white; padding: 8px 12px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+    .rib-table td { padding: 10px 12px; text-align: center; font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; border: 1px solid #ddd; letter-spacing: 2px; }
+    .iban-section { margin: 20px 0; }
+    .iban-section h3 { font-size: 10px; color: #999; text-transform: uppercase; margin: 0 0 8px 0; }
+    .iban-value { font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; color: #003366; letter-spacing: 3px; background: #f5f5f5; padding: 10px 15px; border-radius: 4px; }
+    .bic-section { display: inline-block; margin-top: 10px; }
+    .bic-section span { font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; color: #003366; }
+    .footer { margin-top: 20px; font-size: 8px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+</style>
+</head>
+<body>
+    <div class="rib-container">
+        <h1>Relevé d'Identité Bancaire</h1>
+        <div class="banque-nom">{{ banque }}</div>
+
+        <div class="titulaire">
+            <h3>Titulaire du compte</h3>
+            <p><strong>{{ entreprise.nom }}</strong></p>
+            <p>{{ entreprise.adresse }}, {{ entreprise.code_postal }} {{ entreprise.ville }}</p>
+            <p>SIRET : {{ entreprise.siret }}</p>
+        </div>
+
+        <table class="rib-table">
+            <tr>
+                <th>Code Banque</th>
+                <th>Code Guichet</th>
+                <th>N° de Compte</th>
+                <th>Clé RIB</th>
+            </tr>
+            <tr>
+                <td>{{ code_banque }}</td>
+                <td>{{ code_guichet }}</td>
+                <td>{{ numero_compte }}</td>
+                <td>{{ cle_rib }}</td>
+            </tr>
+        </table>
+
+        <div class="iban-section">
+            <h3>IBAN</h3>
+            <div class="iban-value">{{ iban }}</div>
+        </div>
+
+        <div class="bic-section">
+            <h3 style="font-size: 10px; color: #999; text-transform: uppercase; margin: 0 0 5px 0;">BIC / SWIFT</h3>
+            <span>{{ bic }}</span>
+        </div>
+
+        <div class="footer">
+            <p>Ce document est strictement confidentiel. Il ne doit être transmis qu'à des tiers de confiance dans le cadre d'opérations bancaires.</p>
+        </div>
+    </div>
+</body>
+</html>
