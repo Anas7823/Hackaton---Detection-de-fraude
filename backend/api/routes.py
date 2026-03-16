@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from services.minio_client import upload_to_bronze
+from services.db_client import query_gold_zone
 
 router = APIRouter()
 
@@ -34,4 +35,22 @@ async def upload_documents(files: List[UploadFile] = File(...)):
         "status": "partial_success" if results["failed"] else "success",
         "message": f"{len(results['successful'])} fichier(s) sécurisé(s), {len(results['failed'])} échec(s).",
         "details": results
+    }
+
+@router.get("/api/v1/dashboard")
+async def get_dashboard_data():
+    """Récupère les résultats consolidés depuis la Gold Zone pour le dashboard"""
+    data = query_gold_zone()
+    
+    if not data:
+        return {
+            "status": "empty",
+            "message": "Aucune donnée analysée pour le moment",
+            "data": []
+        }
+        
+    return {
+        "status": "success",
+        "count": len(data),
+        "data": data
     }

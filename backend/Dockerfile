@@ -9,6 +9,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
 # Le code sera monté via le volume dans docker-compose, pas besoin de COPY ici en dev
