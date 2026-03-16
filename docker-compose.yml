@@ -1,0 +1,63 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: idp_minio_storage
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file: 
+      - .env
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - idp_network
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: idp_minio_init
+    depends_on:
+      - minio
+    env_file: 
+      - .env
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc config host add myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb -p myminio/bronze-zone;
+      /usr/bin/mc mb -p myminio/silver-zone;
+      /usr/bin/mc mb -p myminio/gold-zone;
+      echo 'Architecture Medallion initialisée avec succès.';
+      exit 0;
+      "
+    networks:
+      - idp_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: idp_fastapi_backend
+    ports:
+      - "8000:8000"
+    env_file: 
+      - .env
+    environment:
+      - MINIO_ENDPOINT=http://minio:9000
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - minio
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - idp_network
+
+volumes:
+  minio_data:
+    name: idp_minio_data
+
+networks:
+  idp_network:
+    driver: bridge

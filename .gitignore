@@ -1,0 +1,12 @@
+# Environnements et secrets
+.env
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+
+# Mac/Windows
+.DS_Store
+Thumbs.db
