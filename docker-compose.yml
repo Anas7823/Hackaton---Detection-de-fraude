@@ -54,6 +54,37 @@ services:
     networks:
       - idp_network
 
+  # --- BASE DE DONNÉES POUR AIRFLOW ---
+  postgres_airflow:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    networks:
+      - idp_network
+
+  # --- AIRFLOW WEB SERVER & SCHEDULER ---
+  airflow:
+    image: apache/airflow:2.7.1
+    container_name: idp_airflow
+    depends_on:
+      - postgres_airflow
+      - minio
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - _PIP_ADDITIONAL_REQUIREMENTS=boto3 pandas pyarrow
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    ports:
+      - "8080:8080"
+    command: standalone
+    networks:
+      - idp_network
 volumes:
   minio_data:
     name: idp_minio_data
