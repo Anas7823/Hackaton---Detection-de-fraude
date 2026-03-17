@@ -1,5 +1,8 @@
 faker
 xhtml2pdf
+python-dotenv
+boto3
+pyarrow
 Pillow
 requests
 pandas

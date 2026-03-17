@@ -1,5 +1,13 @@
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / ".env")
+    # Override avec .env local pour exécution sur l'hôte (localhost au lieu de minio)
+    load_dotenv(Path(__file__).parent / ".env", override=True)
+except ImportError:
+    pass
+
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 OUTPUT_DIR = BASE_DIR / "output"
@@ -17,6 +25,9 @@ NUM_DOCUMENTS_PER_COMPANY = 5
 
 # Ratio de documents SANS intitulé explicite (FACTURE/DEVIS) - plus réaliste pour la classification
 RATIO_SANS_INTITULE = 0.25
+
+# Ratio de documents frauduleux (faux) dans le dataset
+RATIO_FRAUDE = 0.20
 
 TEAM_MEMBERS = [
     "Ismaël Cerezo",

@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from services.minio_client import upload_to_bronze
-from services.db_client import query_gold_zone
+from services.db_client import query_gold_zone, query_raw_documents, query_raw_companies
 
 router = APIRouter()
 
@@ -51,6 +51,28 @@ async def get_dashboard_data():
         
     return {
         "status": "success",
+        "count": len(data),
+        "data": data
+    }
+
+
+@router.get("/api/v1/documents")
+async def get_raw_documents():
+    """Récupère les documents générés par le data_generator (DuckDB + Parquet Gold zone)"""
+    data = query_raw_documents()
+    return {
+        "status": "success" if data else "empty",
+        "count": len(data),
+        "data": data
+    }
+
+
+@router.get("/api/v1/companies")
+async def get_raw_companies():
+    """Récupère les entreprises du data_generator (DuckDB + Parquet Gold zone)"""
+    data = query_raw_companies()
+    return {
+        "status": "success" if data else "empty",
         "count": len(data),
         "data": data
     }

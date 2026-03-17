@@ -67,8 +67,11 @@ def _random_lines(min_items: int = 1, max_items: int = 6) -> list[LineItem]:
     ]
 
 
-def generate_invoice(emetteur: Company, client: Company, show_titre: bool = True) -> tuple[Invoice, str]:
-    """Génère une facture légitime et retourne (Invoice, html_string). show_titre=False = sans intitulé FACTURE."""
+def generate_invoice(
+    emetteur: Company, client: Company, show_titre: bool = True,
+    fraud_total_ttc: float | None = None,
+) -> tuple[Invoice, str]:
+    """Génère une facture. fraud_total_ttc: si défini, remplace le TTC (document frauduleux)."""
     date_emission = fake.date_between(start_date="-6m", end_date="today")
     lignes = _random_lines()
     taux_tva = random.choice(TVA_RATES)
@@ -83,6 +86,7 @@ def generate_invoice(emetteur: Company, client: Company, show_titre: bool = True
         taux_tva=taux_tva,
     )
 
+    total_ttc = fraud_total_ttc if fraud_total_ttc is not None else invoice.total_ttc
     template = env.get_template("facture.html")
     html = template.render(
         emetteur=emetteur,
@@ -94,14 +98,17 @@ def generate_invoice(emetteur: Company, client: Company, show_titre: bool = True
         taux_tva=invoice.taux_tva,
         total_ht=invoice.total_ht,
         montant_tva=invoice.montant_tva,
-        total_ttc=invoice.total_ttc,
+        total_ttc=total_ttc,
         show_titre=show_titre,
     )
     return invoice, html
 
 
-def generate_devis(emetteur: Company, client: Company, show_titre: bool = True) -> tuple[Devis, str]:
-    """Génère un devis légitime. show_titre=False = sans intitulé DEVIS."""
+def generate_devis(
+    emetteur: Company, client: Company, show_titre: bool = True,
+    fraud_total_ttc: float | None = None,
+) -> tuple[Devis, str]:
+    """Génère un devis. fraud_total_ttc: si défini, remplace le TTC (document frauduleux)."""
     date_emission = fake.date_between(start_date="-6m", end_date="today")
     lignes = _random_lines()
     taux_tva = random.choice(TVA_RATES)
@@ -116,6 +123,7 @@ def generate_devis(emetteur: Company, client: Company, show_titre: bool = True) 
         taux_tva=taux_tva,
     )
 
+    total_ttc = fraud_total_ttc if fraud_total_ttc is not None else devis.total_ttc
     template = env.get_template("devis.html")
     html = template.render(
         emetteur=emetteur,
@@ -127,7 +135,7 @@ def generate_devis(emetteur: Company, client: Company, show_titre: bool = True) 
         taux_tva=devis.taux_tva,
         total_ht=devis.total_ht,
         montant_tva=devis.montant_tva,
-        total_ttc=devis.total_ttc,
+        total_ttc=total_ttc,
         show_titre=show_titre,
     )
     return devis, html
@@ -168,19 +176,20 @@ def generate_attestation_urssaf(
     return attestation, html
 
 
-def generate_kbis(entreprise: Company) -> tuple[ExtraitKbis, str]:
-    """Génère un extrait Kbis."""
+def generate_kbis(entreprise: Company, wrong_entreprise: Company | None = None) -> tuple[ExtraitKbis, str]:
+    """Génère un extrait Kbis. wrong_entreprise: si défini, affiche une autre entreprise (fraude)."""
+    display_company = wrong_entreprise if wrong_entreprise else entreprise
     date_immat = fake.date_between(start_date="-15y", end_date="-1y")
 
     kbis = ExtraitKbis(
-        entreprise=entreprise,
+        entreprise=display_company,
         date_immatriculation=date_immat,
         date_extrait=fake.date_between(start_date="-3m", end_date="today"),
     )
 
     template = env.get_template("kbis.html")
     html = template.render(
-        entreprise=entreprise,
+        entreprise=display_company,
         date_immatriculation=kbis.date_immatriculation.strftime("%d/%m/%Y"),
         date_extrait=kbis.date_extrait.strftime("%d/%m/%Y"),
         numero_rcs=kbis.numero_rcs,
@@ -190,13 +199,16 @@ def generate_kbis(entreprise: Company) -> tuple[ExtraitKbis, str]:
     return kbis, html
 
 
-def generate_rib(entreprise: Company) -> tuple[RIB, str]:
-    """Génère un RIB."""
+def generate_rib(entreprise: Company, fraud_iban: str | None = None) -> tuple[RIB, str]:
+    """Génère un RIB. fraud_iban: si défini, IBAN invalide (document frauduleux)."""
     banque_info = random.choice(BANQUES)
     numero_compte = "".join([str(random.randint(0, 9)) for _ in range(11)])
     cle = str(random.randint(10, 99))
-    iban_base = f"FR76{banque_info[1]}{banque_info[2]}{numero_compte}{cle}"
-    iban_formatted = " ".join([iban_base[i:i+4] for i in range(0, len(iban_base), 4)])
+    if fraud_iban:
+        iban_formatted = fraud_iban
+    else:
+        iban_base = f"FR76{banque_info[1]}{banque_info[2]}{numero_compte}{cle}"
+        iban_formatted = " ".join([iban_base[i:i+4] for i in range(0, len(iban_base), 4)])
 
     rib = RIB(
         entreprise=entreprise,
@@ -221,6 +233,42 @@ def generate_rib(entreprise: Company) -> tuple[RIB, str]:
         bic=rib.bic,
     )
     return rib, html
+
+
+def render_facture_override(emetteur, client, invoice, show_titre: bool, total_ttc_override: float) -> str:
+    """Re-rend une facture avec un TTC modifié (pour fraude montant_altere)."""
+    template = env.get_template("facture.html")
+    return template.render(
+        emetteur=emetteur,
+        client=client,
+        numero=invoice.numero,
+        date_emission=invoice.date_emission.strftime("%d/%m/%Y"),
+        date_echeance=invoice.date_echeance.strftime("%d/%m/%Y"),
+        lignes=invoice.lignes,
+        taux_tva=invoice.taux_tva,
+        total_ht=invoice.total_ht,
+        montant_tva=invoice.montant_tva,
+        total_ttc=total_ttc_override,
+        show_titre=show_titre,
+    )
+
+
+def render_devis_override(emetteur, client, devis, show_titre: bool, total_ttc_override: float) -> str:
+    """Re-rend un devis avec un TTC modifié (pour fraude montant_altere)."""
+    template = env.get_template("devis.html")
+    return template.render(
+        emetteur=emetteur,
+        client=client,
+        numero=devis.numero,
+        date_emission=devis.date_emission.strftime("%d/%m/%Y"),
+        date_validite=devis.date_validite.strftime("%d/%m/%Y"),
+        lignes=devis.lignes,
+        taux_tva=devis.taux_tva,
+        total_ht=devis.total_ht,
+        montant_tva=devis.montant_tva,
+        total_ttc=total_ttc_override,
+        show_titre=show_titre,
+    )
 
 
 def render_pdf(html_content: str, output_path: Path) -> None:

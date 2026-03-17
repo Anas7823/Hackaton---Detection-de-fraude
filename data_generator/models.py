@@ -122,3 +122,5 @@ class DocumentRecord:
     doc_type: str
     company_siret: str
     company_name: str
+    is_fraud: bool = False
+    fraud_type: str = ""

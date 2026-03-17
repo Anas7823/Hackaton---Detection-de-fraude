@@ -20,7 +20,7 @@ import pandas as pd
 from config import (
     RAW_DIR, SCANS_DIR, OUTPUT_DIR,
     NUM_COMPANIES, NUM_DOCUMENTS_PER_COMPANY,
-    RATIO_SANS_INTITULE,
+    RATIO_SANS_INTITULE, RATIO_FRAUDE,
 )
 from fetch_sirene import fetch_companies_from_api
 from document_generator import (
@@ -28,8 +28,13 @@ from document_generator import (
     generate_attestation_urssaf, generate_kbis, generate_rib,
     render_pdf,
 )
+from fraud_scenarios import (
+    generate_fraud_invoice, generate_fraud_devis,
+    generate_fraud_attestation_urssaf, generate_fraud_kbis, generate_fraud_rib,
+)
 from degrade_scans import degrade_image, pdf_to_image
 from models import DocumentRecord
+from minio_storage import sync_to_minio
 
 
 def main():
@@ -56,9 +61,14 @@ def main():
 
         for doc_type in doc_types_for_company:
             show_titre = random.random() >= RATIO_SANS_INTITULE if doc_type in ("facture", "devis") else True
+            is_fraud = random.random() < RATIO_FRAUDE
 
             try:
-                doc, html = _generate_document(doc_type, company, client, show_titre)
+                if is_fraud:
+                    doc, html, fraud_type = _generate_fraud_document(doc_type, company, client, companies, show_titre)
+                else:
+                    doc, html = _generate_document(doc_type, company, client, show_titre)
+                    fraud_type = ""
             except Exception as e:
                 print(f"  [WARN] Erreur generation {doc_type} pour {company.nom}: {e}")
                 continue
@@ -77,6 +87,8 @@ def main():
                 doc_type=doc_type,
                 company_siret=company.siret,
                 company_name=company.nom,
+                is_fraud=is_fraud,
+                fraud_type=fraud_type,
             ))
             doc_count += 1
 
@@ -117,6 +129,8 @@ def main():
             "doc_type": r.doc_type,
             "company_siret": r.company_siret,
             "company_name": r.company_name,
+            "is_fraud": r.is_fraud,
+            "fraud_type": r.fraud_type,
         }
         for r in records
     ])
@@ -124,6 +138,15 @@ def main():
     csv_path = OUTPUT_DIR / "documents_manifest.csv"
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
     print(f"       -> {csv_path}")
+
+    # --- Étape 4b : Sync MinIO (Bronze + Gold) pour DuckDB/API ---
+    print(f"\n[4b/5] Sync MinIO (Data Lake pour DuckDB)...")
+    minio_result = sync_to_minio(records, companies)
+    if minio_result["pdfs_bronze"] > 0 or minio_result["manifest_gold"]:
+        print(f"       -> Bronze: {minio_result['pdfs_bronze']} PDFs")
+        print(f"       -> Gold: manifest={minio_result['manifest_gold']}, companies={minio_result['companies_gold']}")
+    else:
+        print(f"       -> [SKIP] MinIO non disponible (verifier MINIO_ENDPOINT)")
 
     # --- Étape 5 : Résumé ---
     print(f"\n[5/5] Resume du dataset")
@@ -136,6 +159,14 @@ def main():
     for doc_type in df["doc_type"].unique():
         count = len(df[df["doc_type"] == doc_type])
         print(f"    {doc_type:<25s} : {count:3d} docs")
+    print()
+    print("  Documents frauduleux :")
+    fraud_count = df["is_fraud"].sum()
+    print(f"    Total frauduleux   : {fraud_count:.0f} / {len(records)}")
+    if fraud_count > 0:
+        for ft in df[df["is_fraud"]]["fraud_type"].unique():
+            c = len(df[(df["is_fraud"]) & (df["fraud_type"] == ft)])
+            print(f"    {ft:<25s} : {c:3d} docs")
 
     print("\n" + "=" * 60)
     print(f"  Dataset sauvegardé dans : {OUTPUT_DIR.resolve()}")
@@ -162,6 +193,23 @@ def _generate_document(doc_type, emetteur, client, show_titre: bool = True):
         return generate_kbis(emetteur)
     elif doc_type == "rib":
         return generate_rib(emetteur)
+    else:
+        raise ValueError(f"Type de document inconnu: {doc_type}")
+
+
+def _generate_fraud_document(doc_type, emetteur, client, companies: list, show_titre: bool = True):
+    """Génère un document frauduleux. Retourne (doc, html, fraud_type)."""
+    if doc_type == "facture":
+        return generate_fraud_invoice(emetteur, client, show_titre)
+    elif doc_type == "devis":
+        return generate_fraud_devis(emetteur, client, show_titre)
+    elif doc_type == "attestation_urssaf":
+        return generate_fraud_attestation_urssaf(emetteur)
+    elif doc_type == "kbis":
+        autre = random.choice([c for c in companies if c.siret != emetteur.siret])
+        return generate_fraud_kbis(emetteur, autre)
+    elif doc_type == "rib":
+        return generate_fraud_rib(emetteur)
     else:
         raise ValueError(f"Type de document inconnu: {doc_type}")
 
