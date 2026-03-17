@@ -67,7 +67,13 @@ L'intégralité de la plateforme est packagée sous **Docker** pour garantir l'i
 
 ### Prérequis
 * [Docker](https://docs.docker.com/get-docker/) et [Docker Compose](https://docs.docker.com/compose/install/) installés sur votre machine.
-* Le fichier `.env` configuré à la racine du projet.
+* Le fichier `.env` configuré à la racine du projet sous cette forme :
+
+```bash
+MINIO_ENDPOINT=http://minio:9000
+MINIO_ROOT_USER=choix_libre
+MINIO_ROOT_PASSWORD=choix_libre
+```
 
 ### Lancement de l'environnement (One-Click)
 
