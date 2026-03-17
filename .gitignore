@@ -19,3 +19,6 @@ data_generator/output/documents_manifest.csv
 
 # contenue de Logs
 airflow/logs/
+
+# Vite
+.vite/

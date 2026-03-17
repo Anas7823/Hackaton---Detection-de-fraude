@@ -89,17 +89,7 @@ async function parseError(response) {
   return `Erreur API (${response.status})`;
 }
 
-/**
- * Real backend provider used when VITE_API_MODE=live.
- * Contract expected:
- * - POST /upload (multipart: files[])
- * - GET /documents/status
- */
 export const backendProvider = {
-  /**
-   * @param {File[]} files
-   * @returns {Promise<import("../../constants/contracts").UploadedDocument[]>}
-   */
   async uploadDocuments(files) {
     const formData = new FormData();
     files.forEach((file) => {
@@ -134,13 +124,9 @@ export const backendProvider = {
     return [];
   },
 
-  /**
-   * @returns {Promise<import("../../constants/contracts").DocumentStatusResponse>}
-   */
   async getDocumentStatuses() {
     const payload = await fetchJsonWithFallback(ENDPOINTS.dashboard);
 
-    // Teammate contract: { status, count, data: [...] } or { status: "empty", data: [] }
     if (payload?.status === "empty") {
       return createEmptyDocumentStatusResponse();
     }
@@ -178,8 +164,6 @@ export const backendProvider = {
       response.stats.fraude = items.filter((item) => item.status === "FRAUDE").length;
       return response;
     }
-
-    // Legacy/alternate contracts
     if (payload?.items && payload?.stats) {
       return payload;
     }
