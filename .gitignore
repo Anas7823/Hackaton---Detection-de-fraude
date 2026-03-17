@@ -1,12 +1,12 @@
+airflow/logs/
+__pycache__/
+*.pyc
+
 # Environnements et secrets
 .env
 .venv
 venv/
 env/
-
-# Python
-__pycache__/
-*.pyc
 
 # Mac/Windows
 .DS_Store
@@ -17,6 +17,3 @@ data_generator/output/raw/
 data_generator/output/scans/
 data_generator/output/ground_truth.csv
 data_generator/output/documents_manifest.csv
-
-# contenue de Logs
-airflow/logs/

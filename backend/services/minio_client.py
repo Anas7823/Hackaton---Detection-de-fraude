@@ -1,9 +1,9 @@
-# backend/services/minio_client.py
-import boto3
-import os
-from botocore.exceptions import ClientError
 import io
+import os
+
+import boto3
 import pandas as pd
+from botocore.exceptions import ClientError
 
 def get_minio_client():
     """Initialise et retourne le client S3 compatible MinIO"""
@@ -23,6 +23,30 @@ def upload_to_bronze(file_obj, filename: str):
     except ClientError as e:
         print(f"Erreur d'upload MinIO: {e}")
         return False
+
+
+def read_bytes_from_zone(zone: str, key: str) -> bytes:
+    s3 = get_minio_client()
+    response = s3.get_object(Bucket=zone, Key=key)
+    return response["Body"].read()
+
+
+def object_exists(zone: str, key: str) -> bool:
+    s3 = get_minio_client()
+    try:
+        s3.head_object(Bucket=zone, Key=key)
+        return True
+    except ClientError:
+        return False
+
+
+def upload_parquet_with_key(df: pd.DataFrame, zone: str, key: str):
+    s3 = get_minio_client()
+    parquet_buffer = io.BytesIO()
+    df.to_parquet(parquet_buffer, engine='pyarrow', index=False)
+    parquet_buffer.seek(0)
+    s3.upload_fileobj(parquet_buffer, zone, key)
+    return key
 
 def upload_parquet_to_zone(df: pd.DataFrame, zone: str, original_filename: str):
     """
