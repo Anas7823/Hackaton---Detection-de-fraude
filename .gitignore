@@ -1,5 +1,6 @@
 # Environnements et secrets
 .env
+.venv
 venv/
 env/
 
