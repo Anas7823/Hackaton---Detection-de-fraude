@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { size: A4; margin: 1.5cm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+    .emetteur { max-width: 45%; }
+    .emetteur h2 { color: #2c3e50; margin: 0 0 5px 0; font-size: 16px; }
+    .emetteur p { margin: 2px 0; font-size: 10px; color: #555; }
+    .facture-titre { text-align: right; }
+    .facture-titre h1 { color: #e74c3c; font-size: 28px; margin: 0; letter-spacing: 2px; }
+    .facture-titre .numero { font-size: 13px; color: #555; margin-top: 5px; }
+    .dates { font-size: 10px; color: #777; margin-top: 8px; }
+    .client-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px 15px; margin-bottom: 25px; max-width: 50%; margin-left: auto; }
+    .client-box h3 { margin: 0 0 8px 0; font-size: 11px; color: #999; text-transform: uppercase; }
+    .client-box p { margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    thead th { background: #2c3e50; color: white; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; }
+    tbody td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+    tbody tr:nth-child(even) { background: #f8f9fa; }
+    .text-right { text-align: right; }
+    .totaux { width: 280px; margin-left: auto; margin-top: 10px; }
+    .totaux table { margin-bottom: 0; }
+    .totaux td { padding: 6px 10px; font-size: 11px; }
+    .totaux .total-ttc { background: #2c3e50; color: white; font-weight: bold; font-size: 13px; }
+    .mentions { margin-top: 40px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 8px; color: #999; }
+    .tva-intra { margin-top: 10px; font-size: 9px; color: #777; }
+</style>
+</head>
+<body>
+    <div class="header">
+        <div class="emetteur">
+            <h2>{{ emetteur.nom }}</h2>
+            <p>{{ emetteur.adresse }}</p>
+            <p>{{ emetteur.code_postal }} {{ emetteur.ville }}</p>
+            <p>SIRET : {{ emetteur.siret }}</p>
+            <p>TVA Intra : {{ emetteur.tva_intra }}</p>
+            <p>{{ emetteur.forme_juridique }} — Capital {{ "{:,.0f}".format(emetteur.capital_social).replace(",", " ") }} €</p>
+        </div>
+        <div class="facture-titre">
+            {% if show_titre | default(true) %}<h1>FACTURE</h1>{% endif %}
+            <div class="numero">N° {{ numero }}</div>
+            <div class="dates">
+                <p>Date d'émission : {{ date_emission }}</p>
+                <p>Date d'échéance : {{ date_echeance }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="client-box">
+        <h3>{% if show_titre | default(true) %}Facturé à{% else %}Client{% endif %}</h3>
+        <p><strong>{{ client.nom }}</strong></p>
+        <p>{{ client.adresse }}</p>
+        <p>{{ client.code_postal }} {{ client.ville }}</p>
+        <p>SIRET : {{ client.siret }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 50%">Désignation</th>
+                <th class="text-right">Qté</th>
+                <th class="text-right">P.U. HT</th>
+                <th class="text-right">Total HT</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in lignes %}
+            <tr>
+                <td>{{ ligne.description }}</td>
+                <td class="text-right">{{ ligne.quantite }}</td>
+                <td class="text-right">{{ "{:,.2f}".format(ligne.prix_unitaire_ht).replace(",", " ") }} €</td>
+                <td class="text-right">{{ "{:,.2f}".format(ligne.total_ht).replace(",", " ") }} €</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totaux">
+        <table>
+            <tr>
+                <td>Total HT</td>
+                <td class="text-right">{{ "{:,.2f}".format(total_ht).replace(",", " ") }} €</td>
+            </tr>
+            <tr>
+                <td>TVA ({{ (taux_tva * 100) | int }}%)</td>
+                <td class="text-right">{{ "{:,.2f}".format(montant_tva).replace(",", " ") }} €</td>
+            </tr>
+            <tr class="total-ttc">
+                <td><strong>Total TTC</strong></td>
+                <td class="text-right"><strong>{{ "{:,.2f}".format(total_ttc).replace(",", " ") }} €</strong></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="tva-intra">
+        TVA intracommunautaire : {{ emetteur.tva_intra }}
+    </div>
+
+    <div class="mentions">
+        <p>En cas de retard de paiement, une pénalité de 3 fois le taux d'intérêt légal sera appliquée, conformément à l'article L.441-10 du Code de commerce.
+        Indemnité forfaitaire de recouvrement : 40 €. Pas d'escompte pour paiement anticipé.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+faker
+xhtml2pdf
+Pillow
+requests
+pandas
+jinja2
+numpy
+pdf2image

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
+from services.minio_client import get_minio_client
 
 app = FastAPI(
     title="API IDP - Traitement de Documents Administratifs",
@@ -24,5 +25,24 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "services": {"minio": "en attente de connexion"}}
-
+    """Vérifie la santé de l'API et la connexion réelle au Data Lake"""
+    health_status = {
+        "status": "up",
+        "database": "duckdb_in_memory",
+        "storage": {"status": "down", "buckets": []}
+    }
+    
+    try:
+        # On tente de lister les buckets pour vérifier la connexion réelle
+        s3 = get_minio_client()
+        response = s3.list_buckets()
+        buckets = [b['Name'] for b in response['Buckets']]
+        
+        health_status["storage"]["status"] = "connected"
+        health_status["storage"]["buckets"] = buckets
+        
+    except Exception as e:
+        health_status["status"] = "degraded"
+        health_status["storage"]["status"] = f"error: {str(e)}"
+    
+    return health_status

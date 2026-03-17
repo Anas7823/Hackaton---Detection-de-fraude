@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { size: A4; margin: 2cm; }
+    body { font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #1a1a1a; line-height: 1.6; }
+    .entete { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #003399; padding-bottom: 15px; }
+    .logo-text { font-size: 24px; font-weight: bold; color: #003399; letter-spacing: 1px; }
+    .sous-titre { font-size: 10px; color: #666; margin-top: 3px; }
+    h1 { text-align: center; font-size: 18px; color: #003399; margin: 30px 0; text-transform: uppercase; letter-spacing: 2px; }
+    .ref { text-align: right; font-size: 9px; color: #888; margin-bottom: 20px; }
+    .contenu { margin: 20px 0; }
+    .contenu p { margin: 8px 0; text-align: justify; }
+    .entreprise-info { background: #f5f5f5; border-left: 4px solid #003399; padding: 15px 20px; margin: 20px 0; }
+    .entreprise-info p { margin: 4px 0; }
+    .entreprise-info strong { display: inline-block; min-width: 180px; }
+    .validite { background: #e8f5e9; border: 1px solid #4caf50; border-radius: 4px; padding: 12px 20px; margin: 25px 0; text-align: center; }
+    .validite strong { color: #2e7d32; }
+    .alerte-expire { background: #ffebee; border: 1px solid #f44336; }
+    .alerte-expire strong { color: #c62828; }
+    .cachet { margin-top: 40px; text-align: center; }
+    .cachet-box { display: inline-block; border: 2px solid #003399; border-radius: 50%; width: 120px; height: 120px; line-height: 120px; text-align: center; color: #003399; font-weight: bold; font-size: 10px; }
+    .footer { margin-top: 50px; text-align: center; font-size: 8px; color: #999; border-top: 1px solid #ddd; padding-top: 10px; }
+    .numero-attestation { font-family: 'Courier New', monospace; font-size: 10px; color: #555; }
+</style>
+</head>
+<body>
+    <div class="entete">
+        <div class="logo-text">URSSAF</div>
+        <div class="sous-titre">Union de Recouvrement des cotisations de Sécurité Sociale et d'Allocations Familiales</div>
+    </div>
+
+    <h1>Attestation de Vigilance</h1>
+
+    <div class="ref">
+        <p>Réf. : <span class="numero-attestation">{{ numero }}</span></p>
+        <p>Délivrée le : {{ date_delivrance }}</p>
+    </div>
+
+    <div class="contenu">
+        <p>Je soussigné(e), le Directeur de l'Urssaf, certifie que l'entreprise désignée ci-dessous est <strong>{{ situation_compte }}</strong> de ses obligations déclaratives et de paiement au regard des cotisations et contributions de sécurité sociale.</p>
+    </div>
+
+    <div class="entreprise-info">
+        <p><strong>Dénomination sociale :</strong> {{ entreprise.nom }}</p>
+        <p><strong>SIRET :</strong> {{ entreprise.siret }}</p>
+        <p><strong>SIREN :</strong> {{ entreprise.siren }}</p>
+        <p><strong>Adresse :</strong> {{ entreprise.adresse }}, {{ entreprise.code_postal }} {{ entreprise.ville }}</p>
+        <p><strong>Effectif salarié :</strong> {{ effectif_salarie }} salarié(s)</p>
+    </div>
+
+    <div class="validite {% if expired %}alerte-expire{% endif %}">
+        <p><strong>Période de validité :</strong></p>
+        <p>Du <strong>{{ date_debut_validite }}</strong> au <strong>{{ date_fin_validite }}</strong></p>
+    </div>
+
+    <div class="contenu">
+        <p>Cette attestation est délivrée en application des articles L.243-15 et D.243-15 du Code de la sécurité sociale, pour servir et valoir ce que de droit.</p>
+        <p>L'authenticité de ce document peut être vérifiée sur <em>www.urssaf.fr</em>.</p>
+    </div>
+
+    <div class="cachet">
+        <div class="cachet-box">URSSAF<br>Cachet officiel</div>
+    </div>
+
+    <div class="footer">
+        <p>URSSAF — Organisme de droit privé chargé d'une mission de service public — Siège social : 36 rue de Valmy, 93108 Montreuil Cedex</p>
+        <p>Document généré automatiquement — Ne pas modifier</p>
+    </div>
+</body>
+</html>

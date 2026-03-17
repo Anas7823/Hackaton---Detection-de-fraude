@@ -10,3 +10,12 @@ __pycache__/
 # Mac/Windows
 .DS_Store
 Thumbs.db
+
+# Data generator output
+data_generator/output/raw/
+data_generator/output/scans/
+data_generator/output/ground_truth.csv
+data_generator/output/documents_manifest.csv
+
+# contenue de Logs
+airflow/logs/

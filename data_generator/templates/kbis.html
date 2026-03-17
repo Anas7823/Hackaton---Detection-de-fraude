@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { size: A4; margin: 2cm; }
+    body { font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+    .entete { text-align: center; margin-bottom: 20px; }
+    .republique { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; color: #003366; }
+    .devise { font-size: 9px; color: #666; font-style: italic; margin-top: 3px; }
+    .greffe { font-size: 10px; color: #555; margin-top: 10px; }
+    h1 { text-align: center; font-size: 20px; color: #003366; margin: 25px 0; border-top: 2px solid #003366; border-bottom: 2px solid #003366; padding: 10px 0; text-transform: uppercase; letter-spacing: 3px; }
+    .info-section { margin: 15px 0; }
+    .info-section h3 { font-size: 12px; color: #003366; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 8px; text-transform: uppercase; }
+    .info-row { display: flex; margin: 4px 0; }
+    .info-label { min-width: 200px; font-weight: bold; color: #444; }
+    .info-value { color: #1a1a1a; }
+    .date-extrait { text-align: right; font-size: 9px; color: #888; margin-bottom: 15px; }
+    .stamp { margin-top: 40px; text-align: center; }
+    .stamp-box { display: inline-block; border: 2px solid #003366; padding: 15px 25px; color: #003366; font-weight: bold; font-size: 10px; text-align: center; }
+    .footer { margin-top: 40px; font-size: 8px; color: #999; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }
+    .rcs-number { font-family: 'Courier New', monospace; font-size: 13px; color: #003366; font-weight: bold; }
+</style>
+</head>
+<body>
+    <div class="entete">
+        <div class="republique">République Française</div>
+        <div class="devise">Liberté — Égalité — Fraternité</div>
+        <div class="greffe">{{ greffe }}</div>
+    </div>
+
+    <h1>Extrait Kbis</h1>
+
+    <div class="date-extrait">
+        Extrait délivré le {{ date_extrait }}
+    </div>
+
+    <div class="info-section">
+        <h3>Identification</h3>
+        <div class="info-row">
+            <span class="info-label">Numéro RCS :</span>
+            <span class="info-value rcs-number">{{ numero_rcs }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">SIREN :</span>
+            <span class="info-value">{{ entreprise.siren }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">SIRET (siège) :</span>
+            <span class="info-value">{{ entreprise.siret }}</span>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>Dénomination</h3>
+        <div class="info-row">
+            <span class="info-label">Dénomination sociale :</span>
+            <span class="info-value"><strong>{{ entreprise.nom }}</strong></span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Forme juridique :</span>
+            <span class="info-value">{{ entreprise.forme_juridique }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Capital social :</span>
+            <span class="info-value">{{ "{:,.0f}".format(entreprise.capital_social).replace(",", " ") }} €</span>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>Siège social</h3>
+        <div class="info-row">
+            <span class="info-label">Adresse :</span>
+            <span class="info-value">{{ entreprise.adresse }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Code postal / Ville :</span>
+            <span class="info-value">{{ entreprise.code_postal }} {{ entreprise.ville }}</span>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>Activité</h3>
+        <div class="info-row">
+            <span class="info-label">Code NAF :</span>
+            <span class="info-value">{{ entreprise.naf }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Activité principale :</span>
+            <span class="info-value">{{ activite_principale }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Date d'immatriculation :</span>
+            <span class="info-value">{{ date_immatriculation }}</span>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h3>Dirigeant</h3>
+        <div class="info-row">
+            <span class="info-label">Représentant légal :</span>
+            <span class="info-value">{{ entreprise.dirigeant }}</span>
+        </div>
+    </div>
+
+    <div class="stamp">
+        <div class="stamp-box">
+            GREFFE DU TRIBUNAL<br>DE COMMERCE<br>— Certifié conforme —
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Ce document est un extrait d'immatriculation au Registre du Commerce et des Sociétés.</p>
+        <p>Il peut être vérifié sur le site officiel Infogreffe : www.infogreffe.fr</p>
+    </div>
+</body>
+</html>
