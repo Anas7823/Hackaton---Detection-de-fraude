@@ -19,7 +19,8 @@ import pandas as pd
 
 from config import (
     RAW_DIR, SCANS_DIR, OUTPUT_DIR,
-    NUM_COMPANIES, NUM_DOCUMENTS_PER_COMPANY,
+    NUM_COMPANIES,
+    DOCS_PER_COMPANY_MIN, DOCS_PER_COMPANY_MAX,
     RATIO_SANS_INTITULE, RATIO_FRAUDE,
 )
 from fetch_sirene import fetch_companies_from_api
@@ -57,7 +58,8 @@ def main():
         company_dir_raw = RAW_DIR / company.siret
         company_dir_raw.mkdir(parents=True, exist_ok=True)
 
-        doc_types_for_company = _pick_document_types(NUM_DOCUMENTS_PER_COMPANY)
+        n_docs = random.randint(DOCS_PER_COMPANY_MIN, DOCS_PER_COMPANY_MAX)
+        doc_types_for_company = _pick_document_types(n_docs)
 
         for doc_type in doc_types_for_company:
             show_titre = random.random() >= RATIO_SANS_INTITULE if doc_type in ("facture", "devis") else True
@@ -174,12 +176,19 @@ def main():
 
 
 def _pick_document_types(n: int) -> list[str]:
-    """Sélectionne un mix réaliste de types de documents pour une entreprise."""
+    """
+    Sélectionne un mix varié de types de documents pour une entreprise.
+    Chaque entreprise a une composition différente (plus ou moins de factures, devis, etc.).
+    """
     must_have = ["facture", "attestation_urssaf"]
-    optional = ["devis", "kbis", "rib"]
     remaining = max(0, n - len(must_have))
-    extras = random.choices(optional + ["facture", "devis"], k=remaining)
-    return must_have + extras
+    # Pool pondéré : facture et devis plus fréquents, kbis et rib moins
+    pool = ["facture", "facture", "devis", "devis", "kbis", "rib"]
+    extras = random.choices(pool, k=remaining)
+    # Mélanger pour varier l'ordre des documents
+    result = must_have + extras
+    random.shuffle(result)
+    return result
 
 
 def _generate_document(doc_type, emetteur, client, show_titre: bool = True):

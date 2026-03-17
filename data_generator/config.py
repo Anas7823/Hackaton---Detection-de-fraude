@@ -20,8 +20,11 @@ DOCUMENT_TYPES = ["facture", "devis", "attestation_urssaf", "kbis", "rib"]
 
 TVA_RATES = [0.055, 0.10, 0.20]
 
-NUM_COMPANIES = 15
-NUM_DOCUMENTS_PER_COMPANY = 5
+NUM_COMPANIES = 50
+NUM_DOCUMENTS_PER_COMPANY = 10
+# Nombre de documents variable par entreprise (min, max)
+DOCS_PER_COMPANY_MIN = 8
+DOCS_PER_COMPANY_MAX = 12
 
 # Ratio de documents SANS intitulé explicite (FACTURE/DEVIS) - plus réaliste pour la classification
 RATIO_SANS_INTITULE = 0.25
