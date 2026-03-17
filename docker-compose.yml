@@ -1,0 +1,109 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: idp_minio_storage
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file: 
+      - .env
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - idp_network
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: idp_minio_init
+    depends_on:
+      - minio
+    env_file: 
+      - .env
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc config host add myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      /usr/bin/mc mb -p myminio/bronze-zone;
+      /usr/bin/mc mb -p myminio/silver-zone;
+      /usr/bin/mc mb -p myminio/gold-zone;
+      echo 'Architecture Medallion initialisée avec succès.';
+      exit 0;
+      "
+    networks:
+      - idp_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: idp_fastapi_backend
+    ports:
+      - "8000:8000"
+    env_file: 
+      - .env
+    environment:
+      - MINIO_ENDPOINT=http://minio:9000
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - minio
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - idp_network
+
+  # --- BASE DE DONNÉES POUR AIRFLOW ---
+  postgres_airflow:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    networks:
+      - idp_network
+
+  # --- AIRFLOW WEB SERVER & SCHEDULER ---
+  airflow:
+    image: apache/airflow:2.10.5
+    container_name: idp_airflow
+    depends_on:
+      - postgres_airflow
+      - minio
+      - minio-init
+      - backend
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__WEBSERVER__RBAC=True
+      - AIRFLOW_CONN_AWS_DEFAULT=aws://admin_idp:SuperSecretPassword123%21@/?endpoint_url=http%3A%2F%2Fminio%3A9000&region_name=us-east-1
+      - MINIO_ENDPOINT=http://minio:9000
+      - BACKEND_BASE_URL=http://backend:8000
+      - BRONZE_BUCKET=bronze-zone
+      - SILVER_BUCKET=silver-zone
+      - GOLD_BUCKET=gold-zone
+      - HIGH_RISK_PREFIX=high-risk/
+      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon boto3 pandas pyarrow httpx
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin || true &&
+      airflow standalone
+      "
+    networks:
+      - idp_network
+volumes:
+  minio_data:
+    name: idp_minio_data
+
+networks:
+  idp_network:
+    driver: bridge
