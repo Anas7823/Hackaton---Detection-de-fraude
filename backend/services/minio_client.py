@@ -83,3 +83,19 @@ def upload_to_silver(df: pd.DataFrame, filename: str):
 
 def upload_to_gold(df: pd.DataFrame, filename: str):
     return upload_parquet_to_zone(df, "gold-zone", filename)
+
+
+def get_file_url(bucket_name: str, object_name: str, expiration=3600):
+    """Génère une URL présignée temporaire pour lire un fichier"""
+    s3 = get_minio_client()
+    try:
+        response = s3.generate_presigned_url('get_object',
+                                            Params={'Bucket': bucket_name,
+                                                    'Key': object_name},
+                                            ExpiresIn=expiration)
+        # Remplacement pour que le navigateur puisse résoudre l'URL locale hors Docker
+        response = response.replace("http://minio:9000", "http://localhost:9000")
+        return response
+    except ClientError as e:
+        print(f"Erreur de génération d'URL MinIO: {e}")
+        return None
