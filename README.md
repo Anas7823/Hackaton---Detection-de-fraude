@@ -101,7 +101,7 @@ python setup_infra.py
 - **Backend API (Swagger UI)** : http://localhost:8000/docs
 - **Orchestrateur (Airflow)** : http://localhost:8080 (Identifiants : admin / admin)
 - **Data Lake Console (MinIO)** : http://localhost:9001 (Identifiants : cf. fichier .env)
-- **Frontend App** : http://localhost:3000
+- **Frontend App** : http://localhost:5173 (Identifiants : admin / admin)
 
 ---
 
