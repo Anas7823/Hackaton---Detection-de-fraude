@@ -35,7 +35,6 @@ from fraud_scenarios import (
 )
 from degrade_scans import degrade_image, pdf_to_image
 from models import DocumentRecord
-from minio_storage import sync_to_minio
 
 
 def main():
@@ -141,14 +140,6 @@ def main():
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
     print(f"       -> {csv_path}")
 
-    # --- Étape 4b : Sync MinIO (Bronze + Gold) pour DuckDB/API ---
-    print(f"\n[4b/5] Sync MinIO (Data Lake pour DuckDB)...")
-    minio_result = sync_to_minio(records, companies)
-    if minio_result["pdfs_bronze"] > 0 or minio_result["manifest_gold"]:
-        print(f"       -> Bronze: {minio_result['pdfs_bronze']} PDFs")
-        print(f"       -> Gold: manifest={minio_result['manifest_gold']}, companies={minio_result['companies_gold']}")
-    else:
-        print(f"       -> [SKIP] MinIO non disponible (verifier MINIO_ENDPOINT)")
 
     # --- Étape 5 : Résumé ---
     print(f"\n[5/5] Resume du dataset")
