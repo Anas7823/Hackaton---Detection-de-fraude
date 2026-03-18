@@ -32,12 +32,23 @@ function normalizeStatus(value) {
   return "VALIDE";
 }
 
+function normalizeFraudScore(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function normalizeDocType(value) {
   const raw = String(value ?? "").toLowerCase();
   if (raw.includes("facture")) {
     return "FACTURE";
   }
+  if (raw.includes("invoice")) {
+    return "FACTURE";
+  }
   if (raw.includes("devis")) {
+    return "DEVIS";
+  }
+  if (raw.includes("quote")) {
     return "DEVIS";
   }
   if (raw.includes("urssaf") || raw.includes("attestation")) {
@@ -134,18 +145,24 @@ export const backendProvider = {
     if (Array.isArray(payload?.data)) {
       const items = payload.data.map((record, index) => {
         const filename = pickFirst(record, ["filename", "file_name", "document_name", "nom_document"], "document-inconnu");
-        const rawType = pickFirst(record, ["docType", "document_type", "type", "doc_type"], "AUTRE");
+        const rawType = pickFirst(record, ["docType", "document_type", "type", "doc_type"], filename);
         const rawStatus = pickFirst(
           record,
-          ["status", "statut_fraude", "fraud_status", "is_fraud", "anomaly", "decision"],
+          ["status", "statut_fraude", "fraud_status", "is_fraud", "anomaly", "decision", "risk_level"],
           "VALIDE"
         );
-        const reason = pickFirst(record, ["reason", "motif", "alert_reason", "anomaly_reason"], "Aucune alerte");
+        const reason = pickFirst(
+          record,
+          ["fraud_summary", "reason", "motif", "alert_reason", "anomaly_reason"],
+          "Aucune alerte"
+        );
         const createdAt = pickFirst(
           record,
           ["createdAt", "created_at", "timestamp", "date", "date_emission"],
           new Date().toISOString()
         );
+        const previewUrl = pickFirst(record, ["preview_url", "previewUrl"], "");
+        const fraudScore = normalizeFraudScore(pickFirst(record, ["fraud_score", "fraudScore"], 0));
 
         return {
           id: pickFirst(record, ["id", "_id"], `${Date.now()}-${index}`),
@@ -153,7 +170,10 @@ export const backendProvider = {
           docType: normalizeDocType(rawType),
           status: normalizeStatus(rawStatus),
           reason,
-          createdAt
+          createdAt,
+          previewUrl: previewUrl ? `${API_BASE_URL}${previewUrl}` : "",
+          fraudSummary: reason,
+          fraudScore
         };
       });
 

@@ -9,6 +9,7 @@ function CompliancePage() {
   const [response, setResponse] = useState(createEmptyDocumentStatusResponse());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedDocument, setSelectedDocument] = useState(null);
 
   async function loadDocuments() {
     setLoading(true);
@@ -105,8 +106,9 @@ function CompliancePage() {
                 <th className="py-2 pr-4 font-semibold">Nom</th>
                 <th className="py-2 pr-4 font-semibold">Type</th>
                 <th className="py-2 pr-4 font-semibold">Statut</th>
-                <th className="py-2 pr-4 font-semibold">Motif</th>
+                <th className="py-2 pr-4 font-semibold">Resume fraude</th>
                 <th className="py-2 pr-2 font-semibold">Date</th>
+                <th className="py-2 font-semibold text-right">Voir</th>
               </tr>
             </thead>
             <tbody>
@@ -117,14 +119,78 @@ function CompliancePage() {
                   <td className="py-3 pr-4">
                     <StatusBadge status={item.status} />
                   </td>
-                  <td className="py-3 pr-4">{item.reason}</td>
+                  <td className="py-3 pr-4">
+                    <div className="max-w-md">
+                      <p className="font-medium text-slate-700">{item.fraudSummary}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Score fraude : {(item.fraudScore ?? 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </td>
                   <td className="py-3 pr-2">{formatDateTime(item.createdAt)}</td>
+                  <td className="py-3 text-right">
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      disabled={!item.previewUrl}
+                      onClick={() => setSelectedDocument(item)}
+                    >
+                      Voir
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {selectedDocument ? (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 p-4 backdrop-blur-sm">
+          <div className="mx-auto grid h-full max-w-6xl gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-2xl lg:grid-cols-[minmax(0,2fr)_360px]">
+            <div className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                <div>
+                  <h3 className="font-display text-lg text-slate-900">{selectedDocument.filename}</h3>
+                  <p className="text-sm text-slate-500">Previsualisation du document source</p>
+                </div>
+                <button type="button" className="btn-ghost" onClick={() => setSelectedDocument(null)}>
+                  Fermer
+                </button>
+              </div>
+              <iframe
+                title={`Apercu de ${selectedDocument.filename}`}
+                src={selectedDocument.previewUrl}
+                className="h-full min-h-[55vh] w-full bg-slate-50"
+              />
+            </div>
+
+            <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Analyse fraude</p>
+              <h4 className="mt-2 font-display text-xl text-slate-900">{selectedDocument.filename}</h4>
+              <div className="mt-4">
+                <StatusBadge status={selectedDocument.status} />
+              </div>
+              <div className="mt-5 space-y-4 text-sm text-slate-700">
+                <div>
+                  <p className="font-semibold text-slate-900">Resume</p>
+                  <p className="mt-1 leading-6">{selectedDocument.fraudSummary}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Score de fraude</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {(selectedDocument.fraudScore ?? 0).toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Date de traitement</p>
+                  <p className="mt-1">{formatDateTime(selectedDocument.createdAt)}</p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

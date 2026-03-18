@@ -48,16 +48,17 @@ def extract_document_fields(raw_text: str) -> dict[str, Any]:
     normalized = re.sub(r"\s+", " ", raw_text).strip()
 
     siret_match = re.search(r"(?:siret\D*)?(\d{14})", normalized, re.IGNORECASE)
-    amount_match = re.search(r"(?:montant|total|ttc)[^\d]{0,10}(\d+[.,]\d{2})", normalized, re.IGNORECASE)
+    amount_match = re.search(r"(?:montant|total|ttc)[^\d]{0,20}(\d[\d\s]*[.,]\d{2})", normalized, re.IGNORECASE)
     invoice_match = re.search(r"\b(facture|invoice)\b", normalized, re.IGNORECASE)
+    quote_match = re.search(r"\b(devis|quotation|quote)\b", normalized, re.IGNORECASE)
     expired_match = re.search(r"\b(expire|expired|invalide)\b", normalized, re.IGNORECASE)
 
     amount_value = None
     if amount_match:
-        amount_value = float(amount_match.group(1).replace(",", "."))
+        amount_value = float(amount_match.group(1).replace(" ", "").replace(",", "."))
 
     return {
-        "document_type": "invoice" if invoice_match else "unknown",
+        "document_type": "invoice" if invoice_match else "quote" if quote_match else "unknown",
         "siret": siret_match.group(1) if siret_match else None,
         "amount_total": amount_value,
         "mentions_expired": bool(expired_match),
@@ -81,8 +82,14 @@ def analyze_document_with_ocr(file_name: str, file_bytes: bytes) -> dict[str, An
         raw_text, engine = _extract_text_fallback(file_bytes)
         engine = f"{engine} ({exc.__class__.__name__})"
 
+    enriched_text = raw_text
+    if "facture" in lower_name and "facture" not in raw_text.lower():
+        enriched_text = f"facture {enriched_text}"
+    if "devis" in lower_name and "devis" not in raw_text.lower():
+        enriched_text = f"devis {enriched_text}"
+
     return {
         "engine": engine,
-        "raw_text": raw_text[:5000],
-        "fields": extract_document_fields(raw_text),
+        "raw_text": enriched_text[:5000],
+        "fields": extract_document_fields(enriched_text),
     }

@@ -1,11 +1,13 @@
-import duckdb
 import os
 
+import duckdb
+import pandas as pd
+
+
 def get_duckdb_connection():
-    """Crée une connexion DuckDB configurée pour lire sur MinIO"""
-    con = duckdb.connect(database=':memory:') # On travaille en RAM pour la rapidité
-    
-    # Configuration pour accéder à MinIO (S3)
+    """Cree une connexion DuckDB configuree pour lire sur MinIO"""
+    con = duckdb.connect(database=':memory:')
+
     con.execute("INSTALL httpfs;")
     con.execute("LOAD httpfs;")
     endpoint = os.getenv('MINIO_ENDPOINT', 'http://minio:9000')
@@ -14,17 +16,20 @@ def get_duckdb_connection():
     con.execute(f"SET s3_secret_access_key='{os.getenv('MINIO_ROOT_PASSWORD', '')}';")
     con.execute("SET s3_use_ssl=false;")
     con.execute("SET s3_url_style='path';")
-    
+
     return con
 
+
 def query_gold_zone():
-    """Exécute une requête SQL sur les données validées (gold-zone/validated/) pour le dashboard"""
+    """Execute une requete SQL sur les sorties Gold du pipeline pour le dashboard"""
     con = get_duckdb_connection()
     try:
-        # Données validées par le pipeline OCR + détection fraude
-        query = "SELECT * FROM read_parquet('s3://gold-zone/validated/*.parquet')"
-        df = con.execute(query).df() # On récupère le résultat en DataFrame Pandas
-        return df.to_dict(orient='records') # On convertit en liste JSON pour l'API
+        query = "SELECT * FROM read_parquet('s3://gold-zone/*/*.parquet')"
+        df = con.execute(query).df()
+        df = df.replace([float("inf"), float("-inf")], pd.NA)
+        df = df.astype(object)
+        df = df.where(pd.notnull(df), None)
+        return df.to_dict(orient='records')
     except Exception as e:
         print(f"Erreur DuckDB: {e}")
         return []
@@ -32,8 +37,8 @@ def query_gold_zone():
 
 def query_raw_documents():
     """
-    Requête les documents générés par le data_generator (zone Gold, reference/documents_manifest.parquet).
-    Retourne la liste des documents avec filename, doc_type, company_siret, company_name.
+    Requete les documents generes par le data_generator
+    (zone Gold, reference/documents_manifest.parquet).
     """
     con = get_duckdb_connection()
     try:
@@ -47,8 +52,8 @@ def query_raw_documents():
 
 def query_raw_companies():
     """
-    Requête les entreprises du data_generator (zone Gold, reference/companies.parquet).
-    Retourne la liste des entreprises (SIRET, nom, adresse, etc.).
+    Requete les entreprises du data_generator
+    (zone Gold, reference/companies.parquet).
     """
     con = get_duckdb_connection()
     try:

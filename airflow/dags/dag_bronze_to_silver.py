@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow import DAG
+from airflow.exceptions import AirflowSkipException
 from airflow.decorators import task
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 
 from pipeline_helpers import (
     BRONZE_BUCKET,
     SILVER_BUCKET,
-    find_next_unprocessed_bronze_pdf,
+    find_unprocessed_bronze_pdfs,
     log_success_message,
     object_exists,
     run_ocr_on_bronze_pdf,
@@ -26,7 +27,7 @@ default_args = {
 with DAG(
     dag_id="bronze_to_silver_ingestion",
     start_date=datetime(2026, 3, 17),
-    schedule="*/2 * * * *",
+    schedule="*/1 * * * *",
     catchup=False,
     default_args=default_args,
     tags=["hackathon", "bronze", "silver", "ocr"],
@@ -43,8 +44,11 @@ with DAG(
     )
 
     @task
-    def select_bronze_key() -> str:
-        return find_next_unprocessed_bronze_pdf()
+    def select_bronze_keys() -> list[str]:
+        try:
+            return find_unprocessed_bronze_pdfs()
+        except ValueError as exc:
+            raise AirflowSkipException(str(exc))
 
     @task(retries=3, retry_delay=timedelta(minutes=1), execution_timeout=timedelta(minutes=5))
     def trigger_ocr(bronze_key: str) -> str:
@@ -60,8 +64,9 @@ with DAG(
     def notify_success(silver_key: str) -> None:
         log_success_message(f"Document traite avec succes vers Silver: {silver_key}")
 
-    selected_key = select_bronze_key()
-    silver_key = trigger_ocr(selected_key)
-    validated_silver = validate_silver_output(silver_key)
+    selected_keys = select_bronze_keys()
+    silver_keys = trigger_ocr.expand(bronze_key=selected_keys)
+    validated_silver = validate_silver_output.expand(silver_key=silver_keys)
 
-    wait_for_bronze_pdf >> selected_key >> silver_key >> validated_silver >> notify_success(validated_silver)
+    wait_for_bronze_pdf >> selected_keys >> silver_keys >> validated_silver
+    notify_success.expand(silver_key=validated_silver)

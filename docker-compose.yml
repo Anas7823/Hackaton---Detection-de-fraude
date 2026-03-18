@@ -71,6 +71,8 @@ services:
       - minio
       - minio-init
       - backend
+    env_file:
+      - .env
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor

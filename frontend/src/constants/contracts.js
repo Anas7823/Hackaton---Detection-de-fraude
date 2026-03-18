@@ -21,6 +21,9 @@
  * @property {DocumentStatus} status
  * @property {string} reason
  * @property {string} createdAt
+ * @property {string} previewUrl
+ * @property {string} fraudSummary
+ * @property {number} fraudScore
  */
 
 /**

@@ -16,6 +16,7 @@ SILVER_BUCKET = os.getenv("SILVER_BUCKET", "silver-zone")
 GOLD_BUCKET = os.getenv("GOLD_BUCKET", "gold-zone")
 HIGH_RISK_PREFIX = os.getenv("HIGH_RISK_PREFIX", "high-risk/")
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://backend:8000")
+AIRFLOW_BATCH_SIZE = max(int(os.getenv("AIRFLOW_BATCH_SIZE", "5")), 1)
 
 
 def get_s3_client():
@@ -45,29 +46,41 @@ def object_exists(bucket_name: str, key: str) -> bool:
         return False
 
 
-def find_next_unprocessed_bronze_pdf() -> str:
+def find_unprocessed_bronze_pdfs(limit: int = AIRFLOW_BATCH_SIZE) -> list[str]:
     bronze_keys = list_bucket_keys(BRONZE_BUCKET, suffix=".pdf")
     silver_keys = set(list_bucket_keys(SILVER_BUCKET, suffix=".parquet"))
+    pending_keys: list[str] = []
 
     for bronze_key in bronze_keys:
         expected_silver_key = f"{bronze_key.rsplit('.', 1)[0]}.parquet"
         if expected_silver_key not in silver_keys:
-            return bronze_key
+            pending_keys.append(bronze_key)
+        if len(pending_keys) >= limit:
+            break
 
-    raise ValueError("Aucun nouveau PDF Bronze a traiter.")
+    if not pending_keys:
+        raise ValueError("Aucun nouveau PDF Bronze a traiter.")
+
+    return pending_keys
 
 
-def find_next_unprocessed_silver_parquet() -> str:
+def find_unprocessed_silver_parquets(limit: int = AIRFLOW_BATCH_SIZE) -> list[str]:
     silver_keys = list_bucket_keys(SILVER_BUCKET, suffix=".parquet")
     gold_keys = set(list_bucket_keys(GOLD_BUCKET, suffix=".parquet"))
+    pending_keys: list[str] = []
 
     for silver_key in silver_keys:
         standard_key = f"standard/{silver_key}"
         risk_key = f"{HIGH_RISK_PREFIX}{silver_key}"
         if standard_key not in gold_keys and risk_key not in gold_keys:
-            return silver_key
+            pending_keys.append(silver_key)
+        if len(pending_keys) >= limit:
+            break
 
-    raise ValueError("Aucun nouveau fichier Silver a traiter.")
+    if not pending_keys:
+        raise ValueError("Aucun nouveau fichier Silver a traiter.")
+
+    return pending_keys
 
 
 def run_ocr_on_bronze_pdf(bronze_key: str) -> str:

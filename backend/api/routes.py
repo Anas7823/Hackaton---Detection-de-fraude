@@ -1,8 +1,10 @@
 from typing import List
+from urllib.parse import quote
 
 import io
 import pandas as pd
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
 
 from services.db_client import query_gold_zone, query_raw_documents, query_raw_companies
 from services.fraud_service import compute_fraud_scores
@@ -15,6 +17,42 @@ from services.minio_client import (
 from services.ocr_service import analyze_document_with_ocr
 
 router = APIRouter()
+
+
+def build_fraud_summary(record: dict) -> str:
+    fraud_score = float(record.get("fraud_score") or 0)
+    summary_parts = []
+
+    if fraud_score > 0.8:
+        summary_parts.append(f"Score de fraude eleve ({fraud_score:.2f})")
+    elif fraud_score > 0.4:
+        summary_parts.append(f"Score de vigilance modere ({fraud_score:.2f})")
+
+    if record.get("mentions_expired"):
+        summary_parts.append("document potentiellement expire")
+    if not record.get("siret"):
+        summary_parts.append("SIRET absent")
+    if record.get("document_type") == "unknown":
+        summary_parts.append("type de document non reconnu")
+    if record.get("amount_total") in (None, ""):
+        summary_parts.append("montant total non extrait")
+    if "fallback" in str(record.get("ocr_engine", "")).lower():
+        summary_parts.append("OCR degrade, verification manuelle conseillee")
+
+    if not summary_parts:
+        return "Aucune alerte"
+
+    return " ; ".join(summary_parts)
+
+
+def enrich_dashboard_record(record: dict) -> dict:
+    source_file = record.get("source_file", "")
+    enriched = dict(record)
+    enriched["filename"] = source_file or record.get("filename", "document-inconnu")
+    enriched["fraud_summary"] = build_fraud_summary(record)
+    enriched["status"] = "FRAUDE" if float(record.get("fraud_score") or 0) > 0.8 else "VALIDE"
+    enriched["preview_url"] = f"/api/v1/documents/view?key={quote(source_file)}" if source_file else ""
+    return enriched
 
 
 @router.post("/api/v1/upload")
@@ -47,7 +85,7 @@ async def upload_documents(files: List[UploadFile] = File(...)):
 @router.get("/api/v1/dashboard")
 async def get_dashboard_data():
     """Recupere les resultats consolides depuis la Gold Zone pour le dashboard"""
-    data = query_gold_zone()
+    data = [enrich_dashboard_record(record) for record in query_gold_zone()]
 
     if not data:
         return {
@@ -61,6 +99,19 @@ async def get_dashboard_data():
         "count": len(data),
         "data": data,
     }
+
+
+@router.get("/api/v1/documents/view")
+async def view_document(key: str):
+    if not key:
+        raise HTTPException(status_code=400, detail="key is required")
+
+    if not object_exists("bronze-zone", key):
+        raise HTTPException(status_code=404, detail="Document introuvable dans Bronze")
+
+    file_bytes = read_bytes_from_zone("bronze-zone", key)
+    media_type = "application/pdf" if key.lower().endswith(".pdf") else "application/octet-stream"
+    return StreamingResponse(io.BytesIO(file_bytes), media_type=media_type)
 
 
 @router.get("/api/v1/documents")

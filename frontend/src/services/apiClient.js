@@ -23,7 +23,10 @@ function normalizeStatusItem(item, index) {
     docType: asString(item?.docType, "AUTRE"),
     status: asString(item?.status, "FRAUDE"),
     reason: asString(item?.reason, "Motif indisponible"),
-    createdAt: asString(item?.createdAt, new Date().toISOString())
+    createdAt: asString(item?.createdAt, new Date().toISOString()),
+    previewUrl: asString(item?.previewUrl),
+    fraudSummary: asString(item?.fraudSummary, "Resume indisponible"),
+    fraudScore: typeof item?.fraudScore === "number" ? item.fraudScore : 0
   };
 }
 
