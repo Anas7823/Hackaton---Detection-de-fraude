@@ -11,8 +11,10 @@ except ImportError:
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 OUTPUT_DIR = BASE_DIR / "output"
-RAW_DIR = OUTPUT_DIR / "raw"
-SCANS_DIR = OUTPUT_DIR / "scans"
+RAW_DIR = OUTPUT_DIR / "raw"           # Documents légitimes
+RAW_FRAUD_DIR = OUTPUT_DIR / "raw_fraud"  # Documents frauduleux (séparés)
+SCANS_DIR = OUTPUT_DIR / "scans"       # Scans des documents légitimes
+SCANS_FRAUD_DIR = OUTPUT_DIR / "scans_fraud"  # Scans des documents frauduleux
 
 SIRENE_API_URL = "https://recherche-entreprises.api.gouv.fr/search"
 
