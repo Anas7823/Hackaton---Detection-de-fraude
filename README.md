@@ -70,6 +70,8 @@ L'intégralité de la plateforme est packagée sous **Docker** pour garantir l'i
 * Le fichier `.env` configuré à la racine du projet sous cette forme :
 
 ```bash
+VITE_API_MODE = live
+VITE_API_BASE_URL=http://localhost:8000
 MINIO_ENDPOINT=http://minio:9000
 MINIO_ROOT_USER=choix_libre
 MINIO_ROOT_PASSWORD=choix_libre
