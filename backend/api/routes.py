@@ -5,16 +5,28 @@ import pandas as pd
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from services.db_client import query_gold_zone, query_raw_documents, query_raw_companies
+from services.validation_service import apply_advanced_validation, add_ml_detection 
 from services.fraud_service import compute_fraud_scores
 from services.minio_client import (
     object_exists,
     read_bytes_from_zone,
     upload_parquet_with_key,
     upload_to_bronze,
+    get_file_url
 )
 from services.ocr_service import analyze_document_with_ocr
 
 router = APIRouter()
+
+@router.get("/api/v1/documents/{filename}/url")
+async def get_document_url(filename: str):
+    """Génère une URL temporaire pour visualiser le document brut (PDF/Image) depuis la Bronze Zone"""
+    url = get_file_url("bronze-zone", filename)
+    
+    if not url:
+        raise HTTPException(status_code=404, detail="Fichier introuvable ou erreur MinIO")
+        
+    return {"url": url}
 
 
 @router.post("/api/v1/upload")
@@ -135,6 +147,8 @@ async def process_silver_to_gold(payload: dict):
     parquet_bytes = read_bytes_from_zone("silver-zone", silver_key)
     df = pd.read_parquet(io.BytesIO(parquet_bytes))
     scored_df = compute_fraud_scores(df)
+    scored_df = apply_advanced_validation(scored_df)
+    scored_df = add_ml_detection(scored_df)
 
     prefix = "high-risk/" if float(scored_df["fraud_score"].max()) > 0.8 else "standard/"
     gold_key = f"{prefix}{silver_key}"
