@@ -18,7 +18,7 @@ if sys.stdout.encoding != "utf-8":
 import pandas as pd
 
 from config import (
-    RAW_DIR, SCANS_DIR, OUTPUT_DIR,
+    RAW_DIR, RAW_FRAUD_DIR, SCANS_DIR, SCANS_FRAUD_DIR, OUTPUT_DIR,
     NUM_COMPANIES,
     DOCS_PER_COMPANY_MIN, DOCS_PER_COMPANY_MAX,
     RATIO_SANS_INTITULE, RATIO_FRAUDE,
@@ -55,7 +55,9 @@ def main():
     for i, company in enumerate(companies):
         client = random.choice([c for c in companies if c.siret != company.siret])
         company_dir_raw = RAW_DIR / company.siret
+        company_dir_fraud = RAW_FRAUD_DIR / company.siret
         company_dir_raw.mkdir(parents=True, exist_ok=True)
+        company_dir_fraud.mkdir(parents=True, exist_ok=True)
 
         n_docs = random.randint(DOCS_PER_COMPANY_MIN, DOCS_PER_COMPANY_MAX)
         doc_types_for_company = _pick_document_types(n_docs)
@@ -75,7 +77,8 @@ def main():
                 continue
 
             filename = f"{company.siret}_{doc_type}_{doc_count:04d}.pdf"
-            pdf_path = company_dir_raw / filename
+            pdf_dir = company_dir_fraud if is_fraud else company_dir_raw
+            pdf_path = pdf_dir / filename
 
             try:
                 render_pdf(html, pdf_path)
@@ -101,17 +104,24 @@ def main():
     # --- Étape 3 : Générer des scans dégradés ---
     print(f"\n[3/5] Génération des scans dégradés...")
     scan_count = 0
-    pdf_files = list(RAW_DIR.rglob("*.pdf"))
+    pdf_files_legit = list(RAW_DIR.rglob("*.pdf"))
+    pdf_files_fraud = list(RAW_FRAUD_DIR.rglob("*.pdf"))
+    all_pdfs = pdf_files_legit + pdf_files_fraud
 
     scan_ratio = 0.6
-    pdfs_to_scan = random.sample(pdf_files, int(len(pdf_files) * scan_ratio))
+    pdfs_to_scan = random.sample(all_pdfs, min(len(all_pdfs), int(len(all_pdfs) * scan_ratio)))
 
     for pdf_path in pdfs_to_scan:
         try:
             img_path = pdf_to_image(pdf_path)
-            scan_output = SCANS_DIR / pdf_path.relative_to(RAW_DIR).with_suffix(".png")
+            try:
+                rel = pdf_path.relative_to(RAW_DIR)
+                scan_output = SCANS_DIR / rel.with_suffix(".png")
+            except ValueError:
+                rel = pdf_path.relative_to(RAW_FRAUD_DIR)
+                scan_output = SCANS_FRAUD_DIR / rel.with_suffix(".png")
             scan_output.parent.mkdir(parents=True, exist_ok=True)
-            degradation_info = degrade_image(img_path, scan_output)
+            degrade_image(img_path, scan_output)
 
             if img_path.exists() and img_path.suffix == ".png":
                 img_path.unlink()
@@ -132,6 +142,7 @@ def main():
             "company_name": r.company_name,
             "is_fraud": r.is_fraud,
             "fraud_type": r.fraud_type,
+            "folder": "raw_fraud" if r.is_fraud else "raw",
         }
         for r in records
     ])

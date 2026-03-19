@@ -3,6 +3,7 @@ import StatusBadge from "../components/StatusBadge";
 import { DOCUMENT_FILTER, createEmptyDocumentStatusResponse } from "../constants/contracts";
 import { getDocumentStatuses } from "../services/apiClient";
 import { formatDateTime, getTypeLabel } from "../utils/format";
+  
 
 function CompliancePage() {
   const [filter, setFilter] = useState(DOCUMENT_FILTER.TOUS);
@@ -34,6 +35,24 @@ function CompliancePage() {
     }
     return response.items.filter((item) => item.status === filter);
   }, [filter, response.items]);
+
+  const [fileUrl, setFileUrl] = useState(null);
+
+  // Fonction appelée lorsqu'on clique sur le bouton "Voir le document"
+  const handleViewDocument = async (filename) => {
+    try {
+      // On demande l'URL sécurisée au backend
+      const response = await fetch(`http://localhost:8000/api/v1/documents/${filename}/url`);
+      const data = await response.json();
+      
+      // On sauvegarde l'URL pour l'afficher
+      if (data.url) {
+        setFileUrl(data.url);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération du fichier", error);
+    }
+  };
 
   return (
     <section className="space-y-5">
@@ -108,7 +127,7 @@ function CompliancePage() {
                 <th className="py-2 pr-4 font-semibold">Statut</th>
                 <th className="py-2 pr-4 font-semibold">Resume fraude</th>
                 <th className="py-2 pr-2 font-semibold">Date</th>
-                <th className="py-2 font-semibold text-right">Voir</th>
+                <th className="py-2 pr-2 font-semibold">Voir</th>
               </tr>
             </thead>
             <tbody>
@@ -128,12 +147,10 @@ function CompliancePage() {
                     </div>
                   </td>
                   <td className="py-3 pr-2">{formatDateTime(item.createdAt)}</td>
-                  <td className="py-3 text-right">
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      disabled={!item.previewUrl}
-                      onClick={() => setSelectedDocument(item)}
+                  <td className="py-3 pr-2">
+                    <button 
+                      onClick={() => handleViewDocument(item.filename)}
+                      className="text-sm font-medium text-blue-600 transition hover:text-blue-800"
                     >
                       Voir
                     </button>
@@ -145,55 +162,32 @@ function CompliancePage() {
         )}
       </div>
 
-      {selectedDocument ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 p-4 backdrop-blur-sm">
-          <div className="mx-auto grid h-full max-w-6xl gap-4 overflow-hidden rounded-3xl bg-white p-4 shadow-2xl lg:grid-cols-[minmax(0,2fr)_360px]">
-            <div className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <div>
-                  <h3 className="font-display text-lg text-slate-900">{selectedDocument.filename}</h3>
-                  <p className="text-sm text-slate-500">Previsualisation du document source</p>
-                </div>
-                <button type="button" className="btn-ghost" onClick={() => setSelectedDocument(null)}>
-                  Fermer
-                </button>
-              </div>
-              <iframe
-                title={`Apercu de ${selectedDocument.filename}`}
-                src={selectedDocument.previewUrl}
-                className="h-full min-h-[55vh] w-full bg-slate-50"
+      {/* Modale Plein Écran pour la visionneuse de document */}
+      {fileUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 sm:p-6 backdrop-blur-sm">
+          <div className="flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h3 className="font-display text-lg text-slate-900">Visionneuse de document</h3>
+              <button
+                type="button"
+                onClick={() => setFileUrl(null)}
+                className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 hover:text-slate-900"
+              >
+                Fermer
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100">
+              <iframe 
+                src={fileUrl} 
+                className="h-full w-full border-none" 
+                title="Visionneuse de document"
               />
             </div>
-
-            <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Analyse fraude</p>
-              <h4 className="mt-2 font-display text-xl text-slate-900">{selectedDocument.filename}</h4>
-              <div className="mt-4">
-                <StatusBadge status={selectedDocument.status} />
-              </div>
-              <div className="mt-5 space-y-4 text-sm text-slate-700">
-                <div>
-                  <p className="font-semibold text-slate-900">Resume</p>
-                  <p className="mt-1 leading-6">{selectedDocument.fraudSummary}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">Score de fraude</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {(selectedDocument.fraudScore ?? 0).toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">Date de traitement</p>
-                  <p className="mt-1">{formatDateTime(selectedDocument.createdAt)}</p>
-                </div>
-              </div>
-            </aside>
           </div>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }
 
 export default CompliancePage;
-
