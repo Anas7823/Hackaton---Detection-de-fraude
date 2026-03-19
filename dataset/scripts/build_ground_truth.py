@@ -9,7 +9,9 @@ from pypdf import PdfReader
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = REPO_ROOT / "data_generator" / "output" / "documents_manifest.csv"
 RAW_DIR = REPO_ROOT / "data_generator" / "output" / "raw"
+RAW_FRAUD_DIR = REPO_ROOT / "data_generator" / "output" / "raw_fraud"
 SCANS_DIR = REPO_ROOT / "data_generator" / "output" / "scans"
+SCANS_FRAUD_DIR = REPO_ROOT / "data_generator" / "output" / "scans_fraud"
 GROUND_TRUTH_PATH = REPO_ROOT / "dataset" / "metadata" / "ground_truth.csv"
 
 HEADERS = [
@@ -106,8 +108,41 @@ def source_relative_path(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
 
 
-def scan_path_for_pdf(company_siret: str, filename: str) -> Path:
-    return SCANS_DIR / company_siret / Path(filename).with_suffix(".png")
+def resolve_pdf_path(company_siret: str, filename: str, is_fraud: bool, folder_hint: str) -> Path:
+    candidates: list[Path] = []
+    if folder_hint == "raw_fraud":
+        candidates.append(RAW_FRAUD_DIR / company_siret / filename)
+    elif folder_hint == "raw":
+        candidates.append(RAW_DIR / company_siret / filename)
+    else:
+        preferred = RAW_FRAUD_DIR if is_fraud else RAW_DIR
+        secondary = RAW_DIR if is_fraud else RAW_FRAUD_DIR
+        candidates.extend([preferred / company_siret / filename, secondary / company_siret / filename])
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(f"Document introuvable (candidats: {candidates})")
+
+
+def resolve_scan_path(company_siret: str, filename: str, is_fraud: bool, folder_hint: str) -> Path | None:
+    scan_filename = Path(filename).with_suffix(".png")
+
+    candidates: list[Path] = []
+    if folder_hint == "raw_fraud":
+        candidates.append(SCANS_FRAUD_DIR / company_siret / scan_filename)
+    elif folder_hint == "raw":
+        candidates.append(SCANS_DIR / company_siret / scan_filename)
+    else:
+        preferred = SCANS_FRAUD_DIR if is_fraud else SCANS_DIR
+        secondary = SCANS_DIR if is_fraud else SCANS_FRAUD_DIR
+        candidates.extend([preferred / company_siret / scan_filename, secondary / company_siret / scan_filename])
+
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
 
 
 def build_rows_from_manifest() -> list[dict[str, str]]:
@@ -124,10 +159,8 @@ def build_rows_from_manifest() -> list[dict[str, str]]:
             company_siret = entry["company_siret"]
             is_fraud = parse_bool(entry.get("is_fraud"))
             type_fraud = (entry.get("fraud_type") or "").strip()
-            pdf_path = RAW_DIR / company_siret / filename
-
-            if not pdf_path.exists():
-                raise FileNotFoundError(f"Document introuvable: {pdf_path}")
+            folder_hint = (entry.get("folder") or "").strip().lower()
+            pdf_path = resolve_pdf_path(company_siret, filename, is_fraud, folder_hint)
 
             pdf_text = extract_pdf_text(pdf_path)
 
@@ -163,8 +196,8 @@ def build_rows_from_manifest() -> list[dict[str, str]]:
                 }
             )
 
-            scan_path = scan_path_for_pdf(company_siret, filename)
-            if scan_path.exists():
+            scan_path = resolve_scan_path(company_siret, filename, is_fraud, folder_hint)
+            if scan_path is not None:
                 scan_filename = scan_path.name
 
                 rows.append(
