@@ -24,7 +24,7 @@ def query_gold_zone():
     """Execute une requete SQL sur les sorties Gold du pipeline pour le dashboard"""
     con = get_duckdb_connection()
     try:
-        query = "SELECT * FROM read_parquet('s3://gold-zone/*/*.parquet')"
+        query = "SELECT * FROM read_parquet('s3://gold-zone/*/*.parquet', union_by_name=true)"
         df = con.execute(query).df()
         df = df.replace([float("inf"), float("-inf")], pd.NA)
         df = df.astype(object)

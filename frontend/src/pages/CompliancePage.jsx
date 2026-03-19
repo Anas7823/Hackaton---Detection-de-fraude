@@ -3,7 +3,6 @@ import StatusBadge from "../components/StatusBadge";
 import { DOCUMENT_FILTER, createEmptyDocumentStatusResponse } from "../constants/contracts";
 import { getDocumentStatuses } from "../services/apiClient";
 import { formatDateTime, getTypeLabel } from "../utils/format";
-  
 
 function CompliancePage() {
   const [filter, setFilter] = useState(DOCUMENT_FILTER.TOUS);
@@ -36,23 +35,13 @@ function CompliancePage() {
     return response.items.filter((item) => item.status === filter);
   }, [filter, response.items]);
 
-  const [fileUrl, setFileUrl] = useState(null);
-
-  // Fonction appelée lorsqu'on clique sur le bouton "Voir le document"
-  const handleViewDocument = async (filename) => {
-    try {
-      // On demande l'URL sécurisée au backend
-      const response = await fetch(`http://localhost:8000/api/v1/documents/${filename}/url`);
-      const data = await response.json();
-      
-      // On sauvegarde l'URL pour l'afficher
-      if (data.url) {
-        setFileUrl(data.url);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la récupération du fichier", error);
+  const previewKind = useMemo(() => {
+    const previewUrl = selectedDocument?.previewUrl?.toLowerCase() ?? "";
+    if (previewUrl.includes(".png") || previewUrl.includes(".jpg") || previewUrl.includes(".jpeg")) {
+      return "image";
     }
-  };
+    return "pdf";
+  }, [selectedDocument]);
 
   return (
     <section className="space-y-5">
@@ -148,8 +137,9 @@ function CompliancePage() {
                   </td>
                   <td className="py-3 pr-2">{formatDateTime(item.createdAt)}</td>
                   <td className="py-3 pr-2">
-                    <button 
-                      onClick={() => handleViewDocument(item.filename)}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDocument(item)}
                       className="text-sm font-medium text-blue-600 transition hover:text-blue-800"
                     >
                       Voir
@@ -162,26 +152,35 @@ function CompliancePage() {
         )}
       </div>
 
-      {/* Modale Plein Écran pour la visionneuse de document */}
-      {fileUrl && (
+      {selectedDocument && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 sm:p-6 backdrop-blur-sm">
           <div className="flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <h3 className="font-display text-lg text-slate-900">Visionneuse de document</h3>
               <button
                 type="button"
-                onClick={() => setFileUrl(null)}
+                onClick={() => setSelectedDocument(null)}
                 className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 hover:text-slate-900"
               >
                 Fermer
               </button>
             </div>
             <div className="flex-1 bg-slate-100">
-              <iframe 
-                src={fileUrl} 
-                className="h-full w-full border-none" 
-                title="Visionneuse de document"
-              />
+              {previewKind === "image" ? (
+                <div className="flex h-full items-center justify-center p-6">
+                  <img
+                    src={selectedDocument.previewUrl}
+                    alt={selectedDocument.filename}
+                    className="max-h-full max-w-full rounded-lg object-contain shadow-sm"
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={selectedDocument.previewUrl}
+                  className="h-full w-full border-none"
+                  title="Visionneuse de document"
+                />
+              )}
             </div>
           </div>
         </div>

@@ -37,8 +37,18 @@ function normalizeFraudScore(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeDocType(value) {
+function toSortableTimestamp(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeDocType(value, filename = "") {
   const raw = String(value ?? "").toLowerCase();
+  const fallbackName = String(filename ?? "").toLowerCase();
   if (raw.includes("facture")) {
     return "FACTURE";
   }
@@ -58,6 +68,21 @@ function normalizeDocType(value) {
     return "KBIS";
   }
   if (raw.includes("rib")) {
+    return "RIB";
+  }
+  if (fallbackName.includes("facture")) {
+    return "FACTURE";
+  }
+  if (fallbackName.includes("devis")) {
+    return "DEVIS";
+  }
+  if (fallbackName.includes("attestation") || fallbackName.includes("urssaf")) {
+    return "ATTESTATION_URSSAF";
+  }
+  if (fallbackName.includes("kbis")) {
+    return "KBIS";
+  }
+  if (fallbackName.includes("rib")) {
     return "RIB";
   }
   return "AUTRE";
@@ -158,7 +183,7 @@ export const backendProvider = {
         );
         const createdAt = pickFirst(
           record,
-          ["createdAt", "created_at", "timestamp", "date", "date_emission"],
+          ["gold_imported_at", "processed_at", "createdAt", "created_at", "timestamp", "date", "date_emission"],
           new Date().toISOString()
         );
         const previewUrl = pickFirst(record, ["preview_url", "previewUrl"], "");
@@ -167,7 +192,7 @@ export const backendProvider = {
         return {
           id: pickFirst(record, ["id", "_id"], `${Date.now()}-${index}`),
           filename,
-          docType: normalizeDocType(rawType),
+          docType: normalizeDocType(rawType, filename),
           status: normalizeStatus(rawStatus),
           reason,
           createdAt,
@@ -176,6 +201,8 @@ export const backendProvider = {
           fraudScore
         };
       });
+
+      items.sort((left, right) => toSortableTimestamp(right.createdAt) - toSortableTimestamp(left.createdAt));
 
       const response = createEmptyDocumentStatusResponse();
       response.items = items;
