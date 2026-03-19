@@ -131,7 +131,7 @@ function CompliancePage() {
                     <div className="max-w-md">
                       <p className="font-medium text-slate-700">{item.fraudSummary}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Score fraude : {(item.fraudScore ?? 0).toFixed(2)}
+                        Score de fraude : {(item.fraudScore ?? 0).toFixed(2)}
                       </p>
                     </div>
                   </td>

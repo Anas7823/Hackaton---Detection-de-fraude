@@ -21,3 +21,5 @@ data_generator/output/documents_manifest.csv
 
 # Vite
 .vite/
+
+data_generator/output/

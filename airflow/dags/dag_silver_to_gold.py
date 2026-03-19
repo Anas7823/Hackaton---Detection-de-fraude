@@ -29,6 +29,7 @@ with DAG(
     start_date=datetime(2026, 3, 17),
     schedule="*/1 * * * *",
     catchup=False,
+    max_active_runs=1,
     default_args=default_args,
     tags=["hackathon", "silver", "gold", "fraud"],
 ) as dag:
