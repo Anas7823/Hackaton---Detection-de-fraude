@@ -37,6 +37,15 @@ function normalizeFraudScore(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function toSortableTimestamp(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function normalizeDocType(value, filename = "") {
   const raw = String(value ?? "").toLowerCase();
   const fallbackName = String(filename ?? "").toLowerCase();
@@ -174,7 +183,7 @@ export const backendProvider = {
         );
         const createdAt = pickFirst(
           record,
-          ["createdAt", "created_at", "timestamp", "date", "date_emission"],
+          ["gold_imported_at", "processed_at", "createdAt", "created_at", "timestamp", "date", "date_emission"],
           new Date().toISOString()
         );
         const previewUrl = pickFirst(record, ["preview_url", "previewUrl"], "");
@@ -192,6 +201,8 @@ export const backendProvider = {
           fraudScore
         };
       });
+
+      items.sort((left, right) => toSortableTimestamp(right.createdAt) - toSortableTimestamp(left.createdAt));
 
       const response = createEmptyDocumentStatusResponse();
       response.items = items;

@@ -2,6 +2,7 @@ from typing import List
 from urllib.parse import quote
 
 import io
+from datetime import datetime, timezone
 import pandas as pd
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
@@ -64,6 +65,14 @@ def enrich_dashboard_record(record: dict) -> dict:
     enriched["fraud_summary"] = build_fraud_summary(record)
     enriched["status"] = "FRAUDE" if float(record.get("fraud_score") or 0) > 0.8 else "VALIDE"
     enriched["preview_url"] = f"/api/v1/documents/view?key={quote(source_file)}" if source_file else ""
+    enriched["createdAt"] = (
+        record.get("gold_imported_at")
+        or record.get("processed_at")
+        or record.get("createdAt")
+        or record.get("created_at")
+        or record.get("timestamp")
+        or record.get("date")
+    )
     return enriched
 
 
@@ -200,6 +209,7 @@ async def process_silver_to_gold(payload: dict):
     scored_df = compute_fraud_scores(df)
     scored_df = apply_advanced_validation(scored_df)
     scored_df = add_ml_detection(scored_df)
+    scored_df["gold_imported_at"] = datetime.now(timezone.utc).isoformat()
 
     prefix = "high-risk/" if float(scored_df["fraud_score"].max()) > 0.8 else "standard/"
     gold_key = f"{prefix}{silver_key}"
