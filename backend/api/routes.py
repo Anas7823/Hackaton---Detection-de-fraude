@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from services.db_client import query_gold_zone, query_raw_documents, query_raw_companies
 from services.validation_service import apply_advanced_validation, add_ml_detection 
-from services.fraud_service import compute_fraud_scores
+from services.fraud_service import REQUIRED_FIELDS_BY_DOC_TYPE, compute_fraud_scores, normalize_document_type
 from services.minio_client import (
     object_exists,
     read_bytes_from_zone,
@@ -34,28 +34,24 @@ async def get_document_url(filename: str):
 
 def build_fraud_summary(record: dict) -> str:
     fraud_score = float(record.get("fraud_score") or 0)
-    summary_parts = []
-
-    if fraud_score > 0.8:
-        summary_parts.append(f"Score de fraude eleve ({fraud_score:.2f})")
-    elif fraud_score > 0.4:
-        summary_parts.append(f"Score de vigilance modere ({fraud_score:.2f})")
+    doc_type = normalize_document_type(record.get("document_type"), record.get("source_file"))
+    required_fields = REQUIRED_FIELDS_BY_DOC_TYPE.get(doc_type, set())
+    user_alerts = []
 
     if record.get("mentions_expired"):
-        summary_parts.append("document potentiellement expire")
-    if not record.get("siret"):
-        summary_parts.append("SIRET absent")
-    if record.get("document_type") == "unknown":
-        summary_parts.append("type de document non reconnu")
-    if record.get("amount_total") in (None, ""):
-        summary_parts.append("montant total non extrait")
-    if "fallback" in str(record.get("ocr_engine", "")).lower():
-        summary_parts.append("OCR degrade, verification manuelle conseillee")
+        user_alerts.append("Le document semble expire.")
+    if doc_type == "unknown":
+        user_alerts.append("Le type de document n'a pas pu etre confirme automatiquement.")
+    if "siret" in required_fields and not record.get("siret"):
+        user_alerts.append("Certaines informations obligatoires sont absentes.")
+    if fraud_score >= 0.75 and user_alerts:
+        return "Controle recommande : " + " ".join(user_alerts[:2])
+    if fraud_score >= 0.45 and user_alerts:
+        return "Points a verifier : " + " ".join(user_alerts[:2])
+    if user_alerts:
+        return "Information utile : " + user_alerts[0]
 
-    if not summary_parts:
-        return "Aucune alerte"
-
-    return " ; ".join(summary_parts)
+    return "Aucune anomalie detectee."
 
 
 def enrich_dashboard_record(record: dict) -> dict:
@@ -63,7 +59,12 @@ def enrich_dashboard_record(record: dict) -> dict:
     enriched = dict(record)
     enriched["filename"] = source_file or record.get("filename", "document-inconnu")
     enriched["fraud_summary"] = build_fraud_summary(record)
-    enriched["status"] = "FRAUDE" if float(record.get("fraud_score") or 0) > 0.8 else "VALIDE"
+    validation_status = str(record.get("statut_fraude") or "").upper()
+    enriched["status"] = (
+        "FRAUDE"
+        if validation_status in {"FRAUDE", "SUSPECT"} or float(record.get("fraud_score") or 0) >= 0.75
+        else "VALIDE"
+    )
     enriched["preview_url"] = f"/api/v1/documents/view?key={quote(source_file)}" if source_file else ""
     enriched["createdAt"] = (
         record.get("gold_imported_at")
@@ -211,7 +212,7 @@ async def process_silver_to_gold(payload: dict):
     scored_df = add_ml_detection(scored_df)
     scored_df["gold_imported_at"] = datetime.now(timezone.utc).isoformat()
 
-    prefix = "high-risk/" if float(scored_df["fraud_score"].max()) > 0.8 else "standard/"
+    prefix = "high-risk/" if float(scored_df["fraud_score"].max()) >= 0.75 else "standard/"
     gold_key = f"{prefix}{silver_key}"
     upload_parquet_with_key(scored_df, "gold-zone", gold_key)
 

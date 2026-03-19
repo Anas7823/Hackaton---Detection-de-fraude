@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import pandas as pd
-from sklearn.ensemble import IsolationForest
+
+from services.fraud_service import REQUIRED_FIELDS_BY_DOC_TYPE, normalize_document_type
 
 
 def apply_advanced_validation(df: pd.DataFrame) -> pd.DataFrame:
@@ -11,25 +12,34 @@ def apply_advanced_validation(df: pd.DataFrame) -> pd.DataFrame:
     motifs = []
 
     for row in result.to_dict(orient="records"):
-
         issues = []
+        doc_type = normalize_document_type(row.get("document_type"), row.get("source_file"))
+        required_fields = REQUIRED_FIELDS_BY_DOC_TYPE.get(doc_type, set())
 
-        if not row.get("siret"):
+        if "siret" in required_fields and not row.get("siret"):
             issues.append("SIRET manquant")
 
-        if row.get("document_type") == "unknown":
+        if doc_type == "unknown":
             issues.append("Type document inconnu")
 
         if row.get("mentions_expired"):
-            issues.append("Document expiré")
+            issues.append("Document expire")
 
-        if row.get("amount_total") and row["amount_total"] > 100000:
-            issues.append("Montant suspect élevé !! ")
+        amount_total = row.get("amount_total")
+        try:
+            if "amount_total" in required_fields and amount_total in (None, ""):
+                issues.append("Montant manquant")
+            elif amount_total not in (None, "") and float(amount_total) > 100000:
+                issues.append("Montant suspect eleve")
+        except (TypeError, ValueError):
+            pass
 
-        # classification
-        if len(issues) >= 3:
+        fraud_score = float(row.get("fraud_score") or 0)
+        ml_probability = float(row.get("ml_probability") or 0)
+
+        if fraud_score >= 0.75 or ml_probability >= 0.6:
             statut = "FRAUDE"
-        elif len(issues) == 2:
+        elif fraud_score >= 0.45 or len(issues) >= 2:
             statut = "SUSPECT"
         else:
             statut = "OK"
@@ -44,16 +54,6 @@ def apply_advanced_validation(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_ml_detection(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-
-    try:
-        model = IsolationForest(contamination=0.1)
-
-        features = df[["amount_total"]].fillna(0)
-
-        df["ml_flag"] = model.fit_predict(features)
-
-    except Exception:
-        df["ml_flag"] = 0 
-
-    return df
+    result = df.copy()
+    result["ml_flag"] = result["fraud_score"].apply(lambda value: 1 if float(value) >= 0.75 else 0)
+    return result
