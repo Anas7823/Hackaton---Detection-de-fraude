@@ -37,8 +37,9 @@ function normalizeFraudScore(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeDocType(value) {
+function normalizeDocType(value, filename = "") {
   const raw = String(value ?? "").toLowerCase();
+  const fallbackName = String(filename ?? "").toLowerCase();
   if (raw.includes("facture")) {
     return "FACTURE";
   }
@@ -58,6 +59,21 @@ function normalizeDocType(value) {
     return "KBIS";
   }
   if (raw.includes("rib")) {
+    return "RIB";
+  }
+  if (fallbackName.includes("facture")) {
+    return "FACTURE";
+  }
+  if (fallbackName.includes("devis")) {
+    return "DEVIS";
+  }
+  if (fallbackName.includes("attestation") || fallbackName.includes("urssaf")) {
+    return "ATTESTATION_URSSAF";
+  }
+  if (fallbackName.includes("kbis")) {
+    return "KBIS";
+  }
+  if (fallbackName.includes("rib")) {
     return "RIB";
   }
   return "AUTRE";
@@ -167,7 +183,7 @@ export const backendProvider = {
         return {
           id: pickFirst(record, ["id", "_id"], `${Date.now()}-${index}`),
           filename,
-          docType: normalizeDocType(rawType),
+          docType: normalizeDocType(rawType, filename),
           status: normalizeStatus(rawStatus),
           reason,
           createdAt,

@@ -17,6 +17,7 @@ GOLD_BUCKET = os.getenv("GOLD_BUCKET", "gold-zone")
 HIGH_RISK_PREFIX = os.getenv("HIGH_RISK_PREFIX", "high-risk/")
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://backend:8000")
 AIRFLOW_BATCH_SIZE = max(int(os.getenv("AIRFLOW_BATCH_SIZE", "5")), 1)
+SUPPORTED_BRONZE_EXTENSIONS = (".pdf", ".png", ".jpg", ".jpeg")
 
 
 def get_s3_client():
@@ -37,6 +38,12 @@ def list_bucket_keys(bucket_name: str, suffix: str | None = None) -> list[str]:
     return sorted(keys)
 
 
+def list_bucket_keys_by_suffixes(bucket_name: str, suffixes: tuple[str, ...]) -> list[str]:
+    keys = list_bucket_keys(bucket_name)
+    normalized_suffixes = tuple(suffix.lower() for suffix in suffixes)
+    return [key for key in keys if key.lower().endswith(normalized_suffixes)]
+
+
 def object_exists(bucket_name: str, key: str) -> bool:
     s3 = get_s3_client()
     try:
@@ -46,8 +53,8 @@ def object_exists(bucket_name: str, key: str) -> bool:
         return False
 
 
-def find_unprocessed_bronze_pdfs(limit: int = AIRFLOW_BATCH_SIZE) -> list[str]:
-    bronze_keys = list_bucket_keys(BRONZE_BUCKET, suffix=".pdf")
+def find_unprocessed_bronze_documents(limit: int = AIRFLOW_BATCH_SIZE) -> list[str]:
+    bronze_keys = list_bucket_keys_by_suffixes(BRONZE_BUCKET, SUPPORTED_BRONZE_EXTENSIONS)
     silver_keys = set(list_bucket_keys(SILVER_BUCKET, suffix=".parquet"))
     pending_keys: list[str] = []
 
@@ -59,7 +66,7 @@ def find_unprocessed_bronze_pdfs(limit: int = AIRFLOW_BATCH_SIZE) -> list[str]:
             break
 
     if not pending_keys:
-        raise ValueError("Aucun nouveau PDF Bronze a traiter.")
+        raise ValueError("Aucun nouveau document Bronze a traiter.")
 
     return pending_keys
 

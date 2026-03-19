@@ -10,7 +10,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from pipeline_helpers import (
     BRONZE_BUCKET,
     SILVER_BUCKET,
-    find_unprocessed_bronze_pdfs,
+    find_unprocessed_bronze_documents,
     log_success_message,
     object_exists,
     run_ocr_on_bronze_pdf,
@@ -34,7 +34,7 @@ with DAG(
 ) as dag:
     wait_for_bronze_pdf = S3KeySensor(
         task_id="wait_for_bronze_pdf",
-        bucket_key="*.pdf",
+        bucket_key="*",
         bucket_name=BRONZE_BUCKET,
         wildcard_match=True,
         aws_conn_id="aws_default",
@@ -46,7 +46,7 @@ with DAG(
     @task
     def select_bronze_keys() -> list[str]:
         try:
-            return find_unprocessed_bronze_pdfs()
+            return find_unprocessed_bronze_documents()
         except ValueError as exc:
             raise AirflowSkipException(str(exc))
 
